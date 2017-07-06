@@ -23,8 +23,9 @@ class Model:
         self.dataset_placeholders, self.datasets, self.iterator = self.create_input_pipeline()
         self.images_ref, self.images_new, self.labels = self.iterator.get_next()
         # self.model = self.build_model_siamese_regression()
-        self.model = self.build_model_siamese()
+        # self.model = self.build_model_siamese()
         # self.model = self.build_model_two_channel()
+        self.model = self.build_model_two_channel_deep()
         self.saver = tf.train.Saver()
 
     def create_input_pipeline(self):
@@ -73,6 +74,38 @@ class Model:
                     model = hp.max_pool(model, [2, 2])
             with tf.variable_scope('fully_connected'):
                 input_size = int(model.shape[1]*model.shape[2]*model.shape[3])
+                model = tf.reshape(model, [-1, input_size])
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
+                    biases = hp.bias_variables([fully_connected_sizes[0]])
+                    model = tf.add(tf.matmul(model, weights), biases)
+                    model = tf.nn.relu(model)
+                with tf.variable_scope('layer_2'):
+                    weights = hp.weight_variables([fully_connected_sizes[0], fully_connected_sizes[1]])
+                    biases = hp.bias_variables([fully_connected_sizes[1]])
+                    model = tf.add(tf.matmul(model, weights), biases)
+                    model = tf.nn.relu(model)
+            with tf.variable_scope('output_layer'):
+                weights = hp.weight_variables([fully_connected_sizes[-1]] + self.label_shape)
+                model = tf.matmul(model, weights)
+                model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
+        return model
+
+    def build_model_two_channel_deep(self):
+        filter_sizes = [[4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        channel_sizes = [20, 40, 40, 80, 80, 80, 80]
+        pools = [True, False, True, False, False, False, True]
+        fully_connected_sizes = [512, 512]
+        with tf.variable_scope('model'):
+            with tf.variable_scope('convolution'):
+                model = tf.concat([self.images_ref, self.images_new], axis=3)
+                for i, (filter_size, channel_size, pool) in enumerate(zip(filter_sizes, channel_sizes, pools)):
+                    with tf.variable_scope('layer_' + str(i)):
+                        model = hp.convolve(model, filter_size, int(model.shape[-1]), channel_size, pad=True)
+                        model = tf.nn.relu(model)
+                        if pool: model = hp.max_pool(model, [2, 2], pad=True)
+            with tf.variable_scope('fully_connected'):
+                input_size = int(model.shape[1] * model.shape[2] * model.shape[3])
                 model = tf.reshape(model, [-1, input_size])
                 with tf.variable_scope('layer_1'):
                     weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
