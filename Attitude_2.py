@@ -83,7 +83,7 @@ class Model:
                 new = tf.matmul(new, weights) + biases
                 new = tf.nn.relu(new)
             with tf.variable_scope('output_layer'):
-                model = tf.stack([ref, new], axis=1)
+                model = tf.concat([ref, new], axis=1)
                 weights = hp.weight_variables([hidden_size*2] + self.label_shape)
                 model = tf.matmul(model, weights)
                 model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
