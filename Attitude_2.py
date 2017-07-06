@@ -86,7 +86,49 @@ class Model:
                 weights = hp.weight_variables([fully_connected_sizes[-1]] + self.label_shape)
                 model = tf.matmul(model, weights)
                 model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
-            return model
+        return model
+
+    def build_model_siamese(self):
+        filter_sizes = [[13, 13], [5, 5]]
+        channel_sizes = [8, 15]
+        fully_connected_sizes = [512, 512]
+        with tf.variable_scope('model'):
+            with tf.variable_scope('branched_convolution'):
+                with tf.variable_scope('layer_1') as scope:
+                    ref = hp.convolve(self.images_ref, filter_sizes[0], self.image_shape[2], channel_sizes[0])
+                    ref = tf.nn.relu(ref)
+                    ref = hp.max_pool(ref, [2, 2])
+                    scope.reuse_variables()
+                    new = hp.convolve(self.images_new, filter_sizes[0], self.image_shape[2], channel_sizes[0])
+                    new = tf.nn.relu(new)
+                    new = hp.max_pool(new, [2, 2])
+                with tf.variable_scope('layer_2') as scope:
+                    ref = hp.convolve(ref, filter_sizes[1], channel_sizes[0], channel_sizes[1])
+                    ref = tf.nn.relu(ref)
+                    ref = hp.max_pool(ref, [2, 2])
+                    scope.reuse_variables()
+                    new = hp.convolve(new, filter_sizes[1], channel_sizes[0], channel_sizes[1])
+                    new = tf.nn.relu(new)
+                    new = hp.max_pool(new, [2, 2])
+            with tf.variable_scope('fully_connected'):
+                model = tf.concat([ref, new], axis=3)
+                input_size = int(model.shape[1]*model.shape[2]*model.shape[3])
+                model = tf.reshape(model, [-1, input_size])
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
+                    biases = hp.bias_variables([fully_connected_sizes[0]])
+                    model = tf.add(tf.matmul(model, weights), biases)
+                    model = tf.nn.relu(model)
+                with tf.variable_scope('layer_2'):
+                    weights = hp.weight_variables([fully_connected_sizes[0], fully_connected_sizes[1]])
+                    biases = hp.bias_variables([fully_connected_sizes[1]])
+                    model = tf.add(tf.matmul(model, weights), biases)
+                    model = tf.nn.relu(model)
+            with tf.variable_scope('output_layer'):
+                weights = hp.weight_variables([fully_connected_sizes[-1]] + self.label_shape)
+                model = tf.matmul(model, weights)
+                model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
+        return model
 
     def build_model_siamese_regression(self):
         hidden_sizes = [3000, 1000]
