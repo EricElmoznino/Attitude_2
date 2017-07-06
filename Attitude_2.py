@@ -93,7 +93,7 @@ class Model:
             with tf.variable_scope('layer_3'):
                 model = tf.concat([ref, new], axis=1)
                 weights = hp.weight_variables([hidden_sizes[1] * 2, merged_sizes[0]])
-                biases = hp.weight_variables([merged_sizes[0]])
+                biases = hp.bias_variables([merged_sizes[0]])
                 model = tf.matmul(model, weights) + biases
                 model = tf.nn.relu(model)
             with tf.variable_scope('output_layer'):
