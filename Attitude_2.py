@@ -72,19 +72,32 @@ class Model:
         #         model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
         # return model
         with tf.variable_scope('model'):
-            hidden_size = 1000
+            hidden_sizes = [3000, 1000]
+            merged_sizes = [1000]
             with tf.variable_scope('layer_1'):
-                weights = hp.weight_variables([reduce(operator.mul, self.image_shape), hidden_size])
-                biases = hp.bias_variables([hidden_size])
+                weights = hp.weight_variables([reduce(operator.mul, self.image_shape), hidden_sizes[0]])
+                biases = hp.bias_variables([hidden_sizes[0]])
                 ref = tf.reshape(self.images_ref, [-1, reduce(operator.mul, self.image_shape)])
                 ref = tf.matmul(ref, weights) + biases
                 ref = tf.nn.relu(ref)
                 new = tf.reshape(self.images_new, [-1, reduce(operator.mul, self.image_shape)])
                 new = tf.matmul(new, weights) + biases
                 new = tf.nn.relu(new)
-            with tf.variable_scope('output_layer'):
+            with tf.variable_scope('layer_2'):
+                weights = hp.weight_variables([hidden_sizes[0], hidden_sizes[1]])
+                biases = hp.bias_variables([hidden_sizes[1]])
+                ref = tf.matmul(ref, weights) + biases
+                ref = tf.nn.relu(ref)
+                new = tf.matmul(new, weights) + biases
+                new = tf.nn.relu(new)
+            with tf.variable_scope('layer_3'):
                 model = tf.concat([ref, new], axis=1)
-                weights = hp.weight_variables([hidden_size*2] + self.label_shape)
+                weights = hp.weight_variables([hidden_sizes[1] * 2, merged_sizes[0]])
+                biases = hp.weight_variables([merged_sizes[0]])
+                model = tf.matmul(model, weights) + biases
+                model = tf.nn.relu(model)
+            with tf.variable_scope('output_layer'):
+                weights = hp.weight_variables([merged_sizes[0], 3])
                 model = tf.matmul(model, weights)
                 model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
         return model
