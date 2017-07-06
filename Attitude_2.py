@@ -6,37 +6,44 @@ import numpy as np
 import shutil
 import os
 import time
+from functools import reduce
+import operator
 
 
 class Model:
     def __init__(self, configuration, image_width, image_height):
         self.conf = configuration
 
-        self.input_shape = [image_width, image_height, 3]
+        self.image_shape = [image_width, image_height, 3]
         self.label_shape = [3]
 
         with tf.variable_scope('hyperparameters'):
             self.keep_prob_placeholder = tf.placeholder(tf.float32, name='dropout_keep_probability')
 
         self.dataset_placeholders, self.datasets, self.iterator = self.create_input_pipeline()
-        self.inputs, self.labels = self.iterator.get_next()
+        self.images_ref, self.images_new, self.labels = self.iterator.get_next()
         self.model = self.build_model()
         self.saver = tf.train.Saver()
 
     def create_input_pipeline(self):
         with tf.variable_scope('input_pipeline'):
-            inputs = tf.placeholder(tf.string, [None])
+            images_ref = tf.placeholder(tf.string, [None])
+            images_new = tf.placeholder(tf.string, [None])
             labels = tf.placeholder(tf.float32, [None] + self.label_shape)
-            placeholders = {'inputs': inputs, 'labels': labels}
+            placeholders = {'images_ref': images_ref, 'images_new': images_new, 'labels': labels}
 
-            def process_images(img_file, label):
-                img_content = tf.read_file(img_file)
-                img = tf.image.decode_jpeg(img_content, channels=self.input_shape[-1])
-                img = tf.divide(tf.cast(img, tf.float32), 255)
-                img.set_shape(self.input_shape)
-                return img, label
+            def process_images(img_file_ref, img_file_new, label):
+                img_content_ref = tf.read_file(img_file_ref)
+                img_ref = tf.image.decode_jpeg(img_content_ref, channels=self.image_shape[-1])
+                img_ref = tf.divide(tf.cast(img_ref, tf.float32), 255)
+                img_ref.set_shape(self.image_shape)
+                img_content_new = tf.read_file(img_file_new)
+                img_new = tf.image.decode_jpeg(img_content_new, channels=self.image_shape[-1])
+                img_new = tf.divide(tf.cast(img_new, tf.float32), 255)
+                img_new.set_shape(self.image_shape)
+                return img_ref, img_new, label
 
-            dataset = data.Dataset.from_tensor_slices((inputs, labels))
+            dataset = data.Dataset.from_tensor_slices((images_ref, images_new, labels))
             dataset = dataset.map(process_images)
             dataset = dataset.repeat()
             train_set = dataset.batch(self.conf.batch_size)
@@ -48,29 +55,39 @@ class Model:
         return placeholders, datasets, iterator
 
     def build_model(self):
-        with tf.variable_scope('model'):
-            with tf.variable_scope('convolution_layer_1'):
-                model = hp.convolve(self.inputs, [5, 5], 3, 20, stride=[2, 2])
-                model = tf.nn.relu(model)
-                model = hp.max_pool(model, [2, 2])
-            with tf.variable_scope('fully_connected_layer_1'):
-                model = tf.reshape(model, [-1, 24 * 24 * 20])
-                weights = hp.weight_variables([24 * 24 * 20, 5000])
-                biases = hp.bias_variables([5000])
-                model = tf.add(tf.matmul(model, weights), biases)
-                model = tf.nn.relu(model)
-            with tf.variable_scope('output_layer'):
-                weights = hp.weight_variables([5000] + self.label_shape)
-                model = tf.matmul(model, weights)
-                model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
-        return model
         # with tf.variable_scope('model'):
+        #     with tf.variable_scope('convolution_layer_1'):
+        #         model = hp.convolve(self.inputs, [5, 5], 3, 20, stride=[2, 2])
+        #         model = tf.nn.relu(model)
+        #         model = hp.max_pool(model, [2, 2])
+        #     with tf.variable_scope('fully_connected_layer_1'):
+        #         model = tf.reshape(model, [-1, 24 * 24 * 20])
+        #         weights = hp.weight_variables([24 * 24 * 20, 5000])
+        #         biases = hp.bias_variables([5000])
+        #         model = tf.add(tf.matmul(model, weights), biases)
+        #         model = tf.nn.relu(model)
         #     with tf.variable_scope('output_layer'):
-        #         model = tf.reshape(self.inputs, [-1, 100*100*3])
-        #         weights = hp.weight_variables([100*100*3] + self.label_shape)
+        #         weights = hp.weight_variables([5000] + self.label_shape)
         #         model = tf.matmul(model, weights)
         #         model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
         # return model
+        with tf.variable_scope('model'):
+            hidden_size = 1000
+            with tf.variable_scope('layer_1'):
+                weights = hp.weight_variables([reduce(operator.mul, self.image_shape), hidden_size])
+                biases = hp.bias_variables([hidden_size])
+                ref = tf.reshape(self.images_ref, [-1, reduce(operator.mul, self.image_shape)])
+                ref = tf.matmul(ref, weights) + biases
+                ref = tf.nn.relu(ref)
+                new = tf.reshape(self.images_new, [-1, reduce(operator.mul, self.image_shape)])
+                new = tf.matmul(new, weights) + biases
+                new = tf.nn.relu(new)
+            with tf.variable_scope('output_layer'):
+                model = tf.stack([ref, new], axis=1)
+                weights = hp.weight_variables([hidden_size*2] + self.label_shape)
+                model = tf.matmul(model, weights)
+                model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
+        return model
 
     def train(self, train_path, validation_path=None, test_path=None):
         with tf.variable_scope('training'):
@@ -118,7 +135,7 @@ class Model:
             self.saver.save(sess, os.path.join(self.conf.train_log_path, 'model.ckpt'))
             if test_path is not None:
                 self.error_for_set(sess, angle_error, test_path, 'test')
-                # self.embeddings_for_set(sess, test_path)
+                self.embeddings_for_set(sess, test_path)
 
     def predict(self, prediction_path):
         with tf.Session() as sess:
@@ -174,9 +191,10 @@ class Model:
         embed_saver.save(sess, os.path.join(self.conf.train_log_path, 'embeddding.ckpt'))
 
     def initialize_iterator_with_set(self, sess, path, set_type):
-        inputs, labels = hp.data_at_path(path)
+        images_ref, images_new, labels = hp.data_at_path(path)
         init = self.iterator.make_initializer(self.datasets[set_type])
         sess.run(init,
-                 feed_dict={self.dataset_placeholders['inputs']: inputs,
+                 feed_dict={self.dataset_placeholders['images_ref']: images_ref,
+                            self.dataset_placeholders['images_new']: images_new,
                             self.dataset_placeholders['labels']: labels})
-        return len(inputs)
+        return len(images_ref)
