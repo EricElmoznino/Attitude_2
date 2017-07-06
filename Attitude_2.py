@@ -60,9 +60,9 @@ class Model:
         fully_connected_sizes = [512, 512]
         with tf.variable_scope('model'):
             with tf.variable_scope('convolution'):
-                model = tf.concat([self.images_ref, self.images_new], axis=2)
+                model = tf.concat([self.images_ref, self.images_new], axis=3)
                 with tf.variable_scope('layer_1'):
-                    model = hp.convolve(model, filter_sizes[0], self.image_shape[2], channel_sizes[0])
+                    model = hp.convolve(model, filter_sizes[0], self.image_shape[2]*2, channel_sizes[0])
                     model = tf.nn.relu(model)
                     model = hp.max_pool(model, [2, 2])
                 with tf.variable_scope('layer_2'):
@@ -70,7 +70,7 @@ class Model:
                     model = tf.nn.relu(model)
                     model = hp.max_pool(model, [2, 2])
             with tf.variable_scope('fully_connected'):
-                input_size = model.shape[1]*model.shape[2]*model.shape[3]
+                input_size = int(model.shape[1]*model.shape[2]*model.shape[3])
                 model = tf.reshape(model, [-1, input_size])
                 with tf.variable_scope('layer_1'):
                     weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
