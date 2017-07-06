@@ -66,7 +66,7 @@ def convolve(model, window, n_inputs, n_outputs, stride=None, pad=False):
         weights = weight_variables(window + [n_inputs] + [n_outputs])
         biases = bias_variables([n_outputs])
         stride = [1] + stride + [1]
-        return tf.nn.conv2d(model, weights, stride, padding=padding) + biases
+        return tf.add(tf.nn.conv2d(model, weights, stride, padding=padding), biases)
 
 
 def max_pool(model, pool_size, stride=None, pad=False):
