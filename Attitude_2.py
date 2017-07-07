@@ -22,10 +22,6 @@ class Model:
 
         self.dataset_placeholders, self.datasets, self.iterator = self.create_input_pipeline()
         self.images_ref, self.images_new, self.labels = self.iterator.get_next()
-        # self.model = self.build_model_siamese_regression()
-        # self.model = self.build_model_siamese()
-        # self.model = self.build_model_pseudo_siamese()
-        # self.model = self.build_model_two_channel()
         self.model = self.build_model_two_channel_deep()
         self.saver = tf.train.Saver()
 
@@ -93,10 +89,10 @@ class Model:
         return model
 
     def build_model_two_channel_deep(self):
-        filter_sizes = [[4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        channel_sizes = [20, 40, 40, 80, 80, 80, 80]
-        pools = [True, False, True, False, False, False, True]
-        fully_connected_sizes = [512, 512]
+        filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
+        pools = [True, False, True, False, True, False, False, False]
+        fully_connected_sizes = [1024, 1024]
         with tf.variable_scope('model'):
             with tf.variable_scope('convolution'):
                 model = tf.concat([self.images_ref, self.images_new], axis=3)
