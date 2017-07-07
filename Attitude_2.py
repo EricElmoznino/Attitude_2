@@ -23,9 +23,9 @@ class Model:
         self.dataset_placeholders, self.datasets, self.iterator = self.create_input_pipeline()
         self.images_ref, self.images_new, self.labels = self.iterator.get_next()
         # self.model = self.build_model_siamese_regression()
-        self.model = self.build_model_siamese()
+        # self.model = self.build_model_siamese()
         # self.model = self.build_model_pseudo_siamese()
-        # self.model = self.build_model_two_channel()
+        self.model = self.build_model_two_channel()
         # self.model = self.build_model_two_channel_deep()
         self.saver = tf.train.Saver()
 
