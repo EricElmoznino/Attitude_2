@@ -54,6 +54,87 @@ class Model:
 
         return placeholders, datasets, iterator
 
+    def build_model_two_channel_deep(self):
+        filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
+        pools = [True, False, True, False, True, False, False, False]
+
+        fully_connected_sizes = [1024, 1024]
+
+        roll_sizes = [1024, 512]
+        yaw_pitch_sizes = [1024]
+        yaw_sizes = [512]
+        pitch_sizes = [512]
+
+        with tf.variable_scope('model'):
+
+            with tf.variable_scope('convolution'):
+                conv = tf.concat([self.images_ref, self.images_new], axis=3)
+                for i, (filter_size, channel_size, pool) in enumerate(zip(filter_sizes, channel_sizes, pools)):
+                    with tf.variable_scope('layer_' + str(i)):
+                        conv = hp.convolve(conv, filter_size, int(conv.shape[-1]), channel_size, pad=True)
+                        conv = tf.nn.relu(conv)
+                        if pool: conv = hp.max_pool(conv, [2, 2], pad=True)
+
+            with tf.variable_scope('fully_connected'):
+                input_size = int(conv.shape[1] * conv.shape[2] * conv.shape[3])
+                layer = tf.reshape(conv, [-1, input_size])
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
+                    biases = hp.bias_variables([fully_connected_sizes[0]])
+                    layer = tf.add(tf.matmul(layer, weights), biases)
+                    layer = tf.nn.relu(layer)
+                with tf.variable_scope('layer_2'):
+                    weights = hp.weight_variables([fully_connected_sizes[0], fully_connected_sizes[1]])
+                    biases = hp.bias_variables([fully_connected_sizes[1]])
+                    layer = tf.add(tf.matmul(layer, weights), biases)
+                    layer = tf.nn.relu(layer)
+
+            with tf.variable_scope('roll'):
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([fully_connected_sizes[-1], roll_sizes[0]])
+                    biases = hp.bias_variables([roll_sizes[0]])
+                    roll = tf.add(tf.matmul(layer, weights), biases)
+                    roll = tf.nn.relu(roll)
+                with tf.variable_scope('layer_2'):
+                    weights = hp.weight_variables([roll_sizes[0], roll_sizes[1]])
+                    biases = hp.bias_variables([roll_sizes[1]])
+                    roll = tf.add(tf.matmul(layer, weights), biases)
+                    roll = tf.nn.relu(roll)
+                with tf.variable_scope('output'):
+                    weights = hp.weight_variables([roll_sizes[1], 1])
+                    roll = tf.matmul(roll, weights)
+            with tf.variable_scope('yaw_pitch'):
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([fully_connected_sizes[-1], yaw_pitch_sizes[0]])
+                    biases = hp.bias_variables([yaw_pitch_sizes[0]])
+                    yaw_pitch = tf.add(tf.matmul(layer, weights), biases)
+                    yaw_pitch = tf.nn.relu(yaw_pitch)
+            with tf.variable_scope('yaw'):
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([yaw_pitch_sizes[-1], yaw_sizes[0]])
+                    biases = hp.bias_variables([yaw_sizes[0]])
+                    yaw = tf.add(tf.matmul(yaw_pitch, weights), biases)
+                    yaw = tf.nn.relu(yaw)
+                with tf.variable_scope('output'):
+                    weights = hp.weight_variables([yaw_sizes[0], 1])
+                    yaw = tf.matmul(yaw, weights)
+            with tf.variable_scope('pitch'):
+                with tf.variable_scope('layer_1'):
+                    weights = hp.weight_variables([yaw_pitch_sizes[-1], pitch_sizes[0]])
+                    biases = hp.bias_variables([pitch_sizes[0]])
+                    pitch = tf.add(tf.matmul(yaw_pitch, weights), biases)
+                    pitch = tf.nn.relu(pitch)
+                with tf.variable_scope('output'):
+                    weights = hp.weight_variables([pitch_sizes[0], 1])
+                    pitch = tf.matmul(pitch, weights)
+
+            with tf.variable_scope('output_layer'):
+                attitude = tf.concat([yaw, pitch, roll], 1)
+                attitude = tf.nn.dropout(attitude, keep_prob=self.keep_prob_placeholder)
+
+        return attitude
+
     def build_model_two_channel(self):
         filter_sizes = [[13, 13], [5, 5]]
         channel_sizes = [10, 20]
@@ -71,38 +152,6 @@ class Model:
                     model = hp.max_pool(model, [2, 2])
             with tf.variable_scope('fully_connected'):
                 input_size = int(model.shape[1]*model.shape[2]*model.shape[3])
-                model = tf.reshape(model, [-1, input_size])
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
-                    biases = hp.bias_variables([fully_connected_sizes[0]])
-                    model = tf.add(tf.matmul(model, weights), biases)
-                    model = tf.nn.relu(model)
-                with tf.variable_scope('layer_2'):
-                    weights = hp.weight_variables([fully_connected_sizes[0], fully_connected_sizes[1]])
-                    biases = hp.bias_variables([fully_connected_sizes[1]])
-                    model = tf.add(tf.matmul(model, weights), biases)
-                    model = tf.nn.relu(model)
-            with tf.variable_scope('output_layer'):
-                weights = hp.weight_variables([fully_connected_sizes[-1]] + self.label_shape)
-                model = tf.matmul(model, weights)
-                model = tf.nn.dropout(model, keep_prob=self.keep_prob_placeholder)
-        return model
-
-    def build_model_two_channel_deep(self):
-        filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
-        pools = [True, False, True, False, True, False, False, False]
-        fully_connected_sizes = [1024, 1024]
-        with tf.variable_scope('model'):
-            with tf.variable_scope('convolution'):
-                model = tf.concat([self.images_ref, self.images_new], axis=3)
-                for i, (filter_size, channel_size, pool) in enumerate(zip(filter_sizes, channel_sizes, pools)):
-                    with tf.variable_scope('layer_' + str(i)):
-                        model = hp.convolve(model, filter_size, int(model.shape[-1]), channel_size, pad=True)
-                        model = tf.nn.relu(model)
-                        if pool: model = hp.max_pool(model, [2, 2], pad=True)
-            with tf.variable_scope('fully_connected'):
-                input_size = int(model.shape[1] * model.shape[2] * model.shape[3])
                 model = tf.reshape(model, [-1, input_size])
                 with tf.variable_scope('layer_1'):
                     weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
