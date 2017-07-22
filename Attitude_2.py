@@ -55,9 +55,12 @@ class Model:
         return placeholders, datasets, iterator
 
     def build_model_two_channel_deep(self):
-        filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        channel_sizes = [40, 80, 80, 160, 160, 320, 320, 640]
-        pools = [True, False, True, False, True, False, False, False]
+        # filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        # channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
+        # pools = [True, False, True, False, True, False, False, False]
+        filter_sizes = [[4, 4], [4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        channel_sizes = [20, 20, 40, 40, 40, 80, 80, 80, 160, 160, 320]
+        pools = [True, False, False, True, False, False, True, False, False, False, False]
 
         fully_connected_sizes = [1024, 1024]
 
