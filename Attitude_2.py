@@ -280,14 +280,14 @@ class Model:
             optimizer = tf.train.AdamOptimizer().minimize(mse)
 
         summaries = tf.summary.merge_all()
-        if os.path.exists(self.conf.train_log_path):
-            shutil.rmtree(self.conf.train_log_path)
-        os.mkdir(self.conf.train_log_path)
+        # if os.path.exists(self.conf.train_log_path):
+        #     shutil.rmtree(self.conf.train_log_path)
+        # os.mkdir(self.conf.train_log_path)
 
         print('Starting training\n')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            train_writer = tf.summary.FileWriter(self.conf.train_log_path, sess.graph)
+            # train_writer = tf.summary.FileWriter(self.conf.train_log_path, sess.graph)
 
             start_time = time.time()
             step = 0
@@ -301,7 +301,7 @@ class Model:
                     if step % max(int(n_steps / 1000), 1) == 0:
                         _, a, s = sess.run([optimizer, angle_error, summaries],
                                            feed_dict={self.keep_prob_placeholder: self.conf.keep_prob})
-                        train_writer.add_summary(s, step)
+                        # train_writer.add_summary(s, step)
                         hp.log_step(step, n_steps, start_time, a)
                     else:
                         _, a = sess.run([optimizer, angle_error],
@@ -314,10 +314,10 @@ class Model:
                 if validation_path is not None:
                     self.error_for_set(sess, angle_error, validation_path, 'validation')
 
-            self.saver.save(sess, os.path.join(self.conf.train_log_path, 'model.ckpt'))
+            # self.saver.save(sess, os.path.join(self.conf.train_log_path, 'model.ckpt'))
             if test_path is not None:
                 self.error_for_set(sess, angle_error, test_path, 'test')
-                self.embeddings_for_set(sess, test_path)
+                # self.embeddings_for_set(sess, test_path)
 
     def predict(self, prediction_path):
         with tf.Session() as sess:
