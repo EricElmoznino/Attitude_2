@@ -57,6 +57,17 @@ def bias_variables(shape):
     return tf.get_variable('biases', shape=shape,
                            initializer=initial)
 
+def fully_connected(prev_layer, layer_size, bias=True, relu=True):
+    assert len(prev_layer.shape) == 2
+    prev_layer_size = int(prev_layer.shape[1])
+    weights = weight_variables([prev_layer_size, layer_size])
+    layer = tf.matmul(prev_layer, weights)
+    if bias:
+        biases = bias_variables([layer_size])
+        layer = tf.add(layer, biases)
+    if relu:
+        layer = tf.nn.relu(layer)
+    return layer
 
 def convolve(model, window, n_inputs, n_outputs, stride=None, pad=False):
     if pad: padding = 'SAME'

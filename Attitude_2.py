@@ -79,55 +79,39 @@ class Model:
             with tf.variable_scope('fully_connected'):
                 input_size = int(conv.shape[1] * conv.shape[2] * conv.shape[3])
                 layer = tf.reshape(conv, [-1, input_size])
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([input_size, fully_connected_sizes[0]])
-                    biases = hp.bias_variables([fully_connected_sizes[0]])
-                    layer = tf.add(tf.matmul(layer, weights), biases)
-                    layer = tf.nn.relu(layer)
-                with tf.variable_scope('layer_2'):
-                    weights = hp.weight_variables([fully_connected_sizes[0], fully_connected_sizes[1]])
-                    biases = hp.bias_variables([fully_connected_sizes[1]])
-                    layer = tf.add(tf.matmul(layer, weights), biases)
-                    layer = tf.nn.relu(layer)
+                for i, layer_size in enumerate(fully_connected_sizes):
+                    with tf.variable_scope('layer_' + str(i)):
+                        layer = hp.fully_connected(layer, layer_size)
 
             with tf.variable_scope('roll'):
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([fully_connected_sizes[-1], roll_sizes[0]])
-                    biases = hp.bias_variables([roll_sizes[0]])
-                    roll = tf.add(tf.matmul(layer, weights), biases)
-                    roll = tf.nn.relu(roll)
-                with tf.variable_scope('layer_2'):
-                    weights = hp.weight_variables([roll_sizes[0], roll_sizes[1]])
-                    biases = hp.bias_variables([roll_sizes[1]])
-                    roll = tf.add(tf.matmul(roll, weights), biases)
-                    roll = tf.nn.relu(roll)
+                roll = layer
+                for i, layer_size in enumerate(roll_sizes):
+                    with tf.variable_scope('layer_' + str(i)):
+                        roll = hp.fully_connected(roll, layer_size)
                 with tf.variable_scope('output'):
-                    weights = hp.weight_variables([roll_sizes[1], 1])
-                    roll = tf.matmul(roll, weights)
+                    roll = hp.fully_connected(roll, 1, bias=False, relu=False)
+
             with tf.variable_scope('yaw_pitch'):
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([fully_connected_sizes[-1], yaw_pitch_sizes[0]])
-                    biases = hp.bias_variables([yaw_pitch_sizes[0]])
-                    yaw_pitch = tf.add(tf.matmul(layer, weights), biases)
-                    yaw_pitch = tf.nn.relu(yaw_pitch)
+                yaw_pitch = layer
+                for i, layer_size in enumerate(yaw_pitch_sizes):
+                    with tf.variable_scope('layer_' + str(i)):
+                        yaw_pitch = hp.fully_connected(yaw_pitch, layer_size)
+
             with tf.variable_scope('yaw'):
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([yaw_pitch_sizes[-1], yaw_sizes[0]])
-                    biases = hp.bias_variables([yaw_sizes[0]])
-                    yaw = tf.add(tf.matmul(yaw_pitch, weights), biases)
-                    yaw = tf.nn.relu(yaw)
+                yaw = yaw_pitch
+                for i, layer_size in enumerate(yaw_sizes):
+                    with tf.variable_scope('layer_' + str(i)):
+                        yaw = hp.fully_connected(yaw, layer_size)
                 with tf.variable_scope('output'):
-                    weights = hp.weight_variables([yaw_sizes[0], 1])
-                    yaw = tf.matmul(yaw, weights)
+                    yaw = hp.fully_connected(yaw, 1, bias=False, relu=False)
+
             with tf.variable_scope('pitch'):
-                with tf.variable_scope('layer_1'):
-                    weights = hp.weight_variables([yaw_pitch_sizes[-1], pitch_sizes[0]])
-                    biases = hp.bias_variables([pitch_sizes[0]])
-                    pitch = tf.add(tf.matmul(yaw_pitch, weights), biases)
-                    pitch = tf.nn.relu(pitch)
+                pitch = yaw_pitch
+                for i, layer_size in enumerate(pitch_sizes):
+                    with tf.variable_scope('layer_' + str(i)):
+                        pitch = hp.fully_connected(pitch, layer_size)
                 with tf.variable_scope('output'):
-                    weights = hp.weight_variables([pitch_sizes[0], 1])
-                    pitch = tf.matmul(pitch, weights)
+                    pitch = hp.fully_connected(pitch, 1, bias=False, relu=False)
 
             with tf.variable_scope('output_layer'):
                 attitude = tf.concat([yaw, pitch, roll], 1)
