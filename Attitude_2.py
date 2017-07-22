@@ -99,7 +99,7 @@ class Model:
                 with tf.variable_scope('layer_2'):
                     weights = hp.weight_variables([roll_sizes[0], roll_sizes[1]])
                     biases = hp.bias_variables([roll_sizes[1]])
-                    roll = tf.add(tf.matmul(layer, weights), biases)
+                    roll = tf.add(tf.matmul(roll, weights), biases)
                     roll = tf.nn.relu(roll)
                 with tf.variable_scope('output'):
                     weights = hp.weight_variables([roll_sizes[1], 1])
