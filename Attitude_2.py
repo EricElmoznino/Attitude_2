@@ -59,7 +59,7 @@ class Model:
         channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
         pools = [True, False, True, False, True, False, False, False]
 
-        fully_connected_sizes = [1024, 1024]
+        fully_connected_sizes = [4096, 4096]
 
         roll_sizes = [1024, 512]
         yaw_pitch_sizes = [1024]
