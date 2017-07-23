@@ -55,17 +55,11 @@ class Model:
         return placeholders, datasets, iterator
 
     def build_model_two_channel_deep(self):
-        filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        channel_sizes = [20, 40, 40, 80, 80, 160, 160, 320]
-        pools = [True, False, True, False, True, False, False, False]
-        # filter_sizes = [[4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        # channel_sizes = [40, 80, 80, 160, 160, 320, 320, 640]
-        # pools = [True, False, True, False, True, False, False, False]
-        # filter_sizes = [[4, 4], [4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
-        # channel_sizes = [20, 20, 40, 40, 40, 80, 80, 80, 160, 160, 320]
-        # pools = [True, False, False, True, False, False, True, False, False, False, False]
+        filter_sizes = [[4, 4], [4, 4], [4, 4], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3], [3, 3]]
+        channel_sizes = [20, 20, 40, 40, 40, 80, 80, 80, 160, 160, 320]
+        pools = [True, False, False, True, False, False, True, False, False, False, False]
 
-        fully_connected_sizes = [1024, 1024]
+        fully_connected_sizes = [2048, 1024]
 
         roll_sizes = [1024, 512]
         yaw_pitch_sizes = [1024]
@@ -286,14 +280,14 @@ class Model:
             optimizer = tf.train.AdamOptimizer().minimize(mse)
 
         summaries = tf.summary.merge_all()
-        # if os.path.exists(self.conf.train_log_path):
-        #     shutil.rmtree(self.conf.train_log_path)
-        # os.mkdir(self.conf.train_log_path)
+        if os.path.exists(self.conf.train_log_path):
+            shutil.rmtree(self.conf.train_log_path)
+        os.mkdir(self.conf.train_log_path)
 
         print('Starting training\n')
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            # train_writer = tf.summary.FileWriter(self.conf.train_log_path, sess.graph)
+            train_writer = tf.summary.FileWriter(self.conf.train_log_path, sess.graph)
 
             start_time = time.time()
             step = 0
@@ -307,7 +301,7 @@ class Model:
                     if step % max(int(n_steps / 1000), 1) == 0:
                         _, a, s = sess.run([optimizer, angle_error, summaries],
                                            feed_dict={self.keep_prob_placeholder: self.conf.keep_prob})
-                        # train_writer.add_summary(s, step)
+                        train_writer.add_summary(s, step)
                         hp.log_step(step, n_steps, start_time, a)
                     else:
                         _, a = sess.run([optimizer, angle_error],
@@ -320,10 +314,10 @@ class Model:
                 if validation_path is not None:
                     self.error_for_set(sess, angle_error, validation_path, 'validation')
 
-            # self.saver.save(sess, os.path.join(self.conf.train_log_path, 'model.ckpt'))
+            self.saver.save(sess, os.path.join(self.conf.train_log_path, 'model.ckpt'))
             if test_path is not None:
                 self.error_for_set(sess, angle_error, test_path, 'test')
-                # self.embeddings_for_set(sess, test_path)
+                self.embeddings_for_set(sess, test_path)
 
     def predict(self, prediction_path):
         with tf.Session() as sess:
